@@ -1,0 +1,38 @@
+(
+~simulate.value(~tm_unMult, "111*11=");
+
+~acceptStates = ~tm_unMult.at(1);
+~instructDict = ~tm_unMult.at(2);
+
+~instruct = ~insConverter.value(~unMult).at([~tm_unMult.at(0), "111*11".at(0).asString]);
+~output = ~step.value(~tm_unMult.at(0), "111*11", 0, ~instruct);
+)
+
+(
+~acceptStates.includes(~output.at(0)).not;
+~newState = ~output.at(0);
+~newTape = ~output.at(1);
+~newTapeHead = ~output.at(2);
+~instruct = ~instructDict.at([~newState, ~newTape.at(~newTapeHead).asString]);
+~output = ~step.value(~output.at(0), ~output.at(1), ~output.at(2), ~instruct);
+)
+
+
+(
+~instruct = ~instructDict.at([\q6, "_ts-0".at(0).asString]);
+~step.value(\q6, "_ts-0", 0, ~instruct);
+
+~tapeHead = 0;
+~tape = "_ts-0";
+
+~nextState = ~instruct.at(0);
+~newChar = ~instruct.at(1);
+~dir = ~instruct.at(2);
+
+~tapeHead == (~tape.size-1) and: (~dir == \r);
+~tapeHead == 0 and: ~dir == \l;
+(~tape.at(~tapeHead) == "_".at(0)) and: (~newChar == "_") and: (~tapeHead == 0) and: (~dir == \r);
+(~tape.at(~tapeHead) == "_".at(0)) and: (~newChar == "_") and: (~tapeHead == (~tape.size - 1)) and: (~dir==\l);
+
+
+)

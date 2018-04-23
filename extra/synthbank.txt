@@ -1,0 +1,475 @@
+(
+// Timpani
+SynthDef("timp", { |rel = 0, choose = 0, amp = 0|
+    var klank, env;
+
+    klank = Klank.ar(`[choose ! 12, {Rand(0.5, 0.6)} ! 12], BrownNoise.ar(0.7));
+    env   = EnvGen.kr(Env.perc(0.01, rel), doneAction: 2);
+    Out.ar(0, klank * env.dup * amp);
+}).add;
+
+x = Synth.new("timp", [\rel, 1, \choose, 32.midicps, \amp, 0.008]);
+
+SynthDef(\marimba, // may need to add doneAction: 2
+    {|freq = 880, rq=0.009|
+        Out.ar(0,
+            Pan2.ar(
+                BPF.ar(WhiteNoise.ar * Line.kr(12, 0, 0.01), freq, rq) * 50
+            )
+        )
+}).play;
+
+SynthDef("marimba1", {arg freq = 440, amp = 10;
+    var snd, env;
+    env = Env.linen(0.015, 1, 0.5, amp).kr(doneAction: 2);
+    snd = BPF.ar(Saw.ar(0), freq, 0.02);
+    snd = BLowShelf.ar(snd, 220, 0.81, 6);
+    snd = snd * env;
+    Out.ar(0, Splay.ar(snd));
+}).play;
+
+SynthDef("kick808", {arg out = 0, freq1 = 240, freq2 = 60, amp = 1, ringTime = 10, rel = 1, dist = 0.5, pan = 0;
+    var snd, env;
+    snd = Ringz.ar(
+        in: Impulse.ar(0), // single impulse
+        freq: XLine.ar(freq1, freq2, 0.1),
+        decaytime: ringTime);
+    env = EnvGen.ar(Env.perc(0.001, rel, amp), doneAction: 2);
+    snd = (1.0 - dist) * snd + (dist * (snd.distort));
+    snd = snd * env;
+    Out.ar(0, Pan2.ar(snd, pan));
+}).play;
+
+SynthDef("trianglewavebells",{
+    arg out = 0, pan = 0.0, freq = 440, amp = 1.0, gate = 1, att = 0.01, dec = 0.1, sus = 0.1, rel = 0.1, lforate = 10, lfowidth = 0.0, cutoff = 100, rq = 0.5;
+
+    var osc1, osc2, vibrato, filter, env;
+    vibrato = SinOsc.ar(lforate, Rand(0, 2.0));
+    osc1 = Saw.ar(freq * (1.0 + (lfowidth * vibrato)), 0.75);
+    osc2 = Mix(LFTri.ar((freq.cpsmidi + [11.9, 12.1]).midicps));
+    filter = RHPF.ar((osc1 + (osc2 * 0.5)) * 0.5, cutoff, rq);
+    env = EnvGen.ar(
+        envelope: Env.adsr(att, dec, sus, rel, amp),
+        gate: gate,
+        doneAction: 2);
+    Out.ar(out, Pan2.ar(filter * env, pan));
+}).play;
+
+SynthDef("werkit", { // Wind Synth for background noise?
+    arg out = 0, pan = 0.0, freq = 880, amp = 0.1, gate = 1, cutoff = 100, rq = 0.1, att = 0.01, dec = 0, sus = 1, rel = 1, delay = 0.3;
+
+    var source, filter, env, snd, delayEnv;
+    source = WhiteNoise.ar;
+    filter = BLowPass4.ar(source, freq, rq) * 0.3;
+    env = EnvGen.ar(
+        envelope: Env.adsr(att, dec, sus, rel, amp),
+        gate: gate,
+        doneAction: 2);
+    snd = (0.7 * filter + (0.3 * filter.distort)) * env;
+    Out.ar(out, Pan2.ar(snd, pan));
+}).play;
+
+SynthDef("harpsichord1", { arg out = 0, freq = 440, amp = 0.1, pan = 0;
+    var env, snd;
+    env = Env.perc(level: amp).kr(doneAction: 2);
+    snd = Pulse.ar(freq, 0.25, 0.75);
+    snd = snd * env;
+    Out.ar(out, Pan2.ar(snd, pan));
+}).play;
+
+SynthDef("kick3", {arg punch = 1, amp = 1;
+    var freq = EnvGen.kr(Env([400, 66], [0.08], -3)),
+    sig = Normalizer.ar(SinOsc.ar(freq, 0.5pi, punch).distort, 1) * amp
+            * EnvGen.kr(Env([0, 1, 0.8, 0], [0.01, 0.1, 0.2]), doneAction: 2);
+    Out.ar(0, sig ! 2);
+}).play;
+
+SynthDef("ringkick", {arg freq = 40, decay = 0.25, amp = 1;
+    var snd;
+    snd = Ringz.ar(
+        in: LPF.ar(
+            in: Impulse.ar(0),
+            freq: 1000),
+        freq: freq,
+        decaytime: decay,
+        mul: 7 * amp).tanh.sin*2;
+    Out.ar(0, snd!2);
+}).play;
+
+// High chime
+SynthDef("beating", {arg freq = 880, amp = 0.9, art = 1;
+    var env, snd1, snd2;
+    env = EnvGen.ar(Env.perc(0.01, art), doneAction: 2);
+    snd1 = SinOsc.ar(freq);
+    snd2 = SinOsc.ar(Line.kr(freq+15, freq, art));
+    Out.ar(0, Pan2.ar(Mix([snd1, snd2]), 0, amp*env))
+}).add;
+
+SynthDef("kraftySnr", { |amp = 1, freq = 2000, rq = 3, decay = 0.3, pan, out|
+    var sig = PinkNoise.ar(amp),
+    env = EnvGen.kr(Env.perc(0.01, decay), doneAction: 2);
+    sig = BPF.ar(sig, freq, rq, env);
+    Out.ar(out, Pan2.ar(sig, pan))
+}).add;
+
+
+SynthDef("kik", { |basefreq = 50, ratio = 7, sweeptime = 0.05, preamp = 1, amp = 1, decay1 = 0.3, decay1L = 0.8, decay2 = 0.15, out|
+    var fcurve = EnvGen.kr(Env([basefreq * ratio, basefreq], [sweeptime], \exp)),
+        env = EnvGen.kr(Env([1, decay1L, 0], [decay1, decay2], -4), doneAction: 2),
+        sig = SinOsc.ar(fcurve, 0.5pi, preamp).distort * env * amp;
+    Out.ar(out, sig ! 2)
+}).play;
+
+SynthDef("plucking", {arg amp = 0.1, freq = 440, decay = 5, coef = 0.1;
+var env, snd;
+env = EnvGen.kr(Env.linen(0, decay, 0), doneAction: 2);
+snd = Pluck.ar(
+        in: WhiteNoise.ar(amp),
+        trig: Impulse.kr(0),
+
+        maxdelaytime: 0.1,
+        delaytime: freq.reciprocal,
+        decaytime: decay,
+        coef: coef);
+    Out.ar(0, [snd, snd]);
+}).play;
+
+// Chorus stringy plucky piano
+SynthDef("blips1", {arg out = 0, freq = 1760, numharm = 10, att = 0.01, rel = 1, amp = 0.1, pan = 0.5;
+    var snd, env;
+    env = Env.perc(att, rel, amp).kr(doneAction: 2);
+    snd = LeakDC.ar(Mix(Blip.ar([freq, freq*1.01], numharm, env)));
+    Out.ar(out, Pan2.ar(snd, pan));
+}).play;
+
+// organ
+SynthDef("organdonor",{
+    arg out = 0, pan = 0.0, freq = 880, amp = 1, gate = 1, att = 0.01, dec = 0.5, sus = 1, rel = 0.5, lforate = 10, lfowidth = 0.01, cutoff = 100, rq = 0.5;
+
+    var vibrato, pulse, filter, env;
+    vibrato = SinOsc.ar(lforate, Rand(0, 2.0));
+    // up octave, detune by 4 cents
+    // 11.96.midiratio = 1.9953843530485
+    // up octave and a half, detune up by 10 cents
+    // 19.10.midiratio = 3.0139733629359
+    freq = freq * [1, 1.9953843530485, 3.0139733629359];
+    freq = freq * (1.0 + (lfowidth * vibrato));
+    pulse = VarSaw.ar(
+        freq: freq,
+        iphase: Rand(0.0, 1.0) ! 3,
+        width: Rand(0.3, 0.5) ! 3,
+        mul: [1.0,0.7,0.3]);
+    pulse = Mix(pulse);
+    filter = RLPF.ar(pulse, cutoff, rq);
+    env = EnvGen.ar(
+        envelope: Env.adsr(att, dec, sus, rel, amp),
+        gate: gate,
+        doneAction: 2);
+    Out.ar(out, Pan2.ar(filter * env, pan));
+}).play;
+
+SynthDef(\pluck, {|freq = 1760, dur = 1|
+var klang,note;
+dur = dur * 2;
+note = freq.cpsmidi;
+note = note + (LFNoise2.ar(20).range(-1,1) * (1/8));
+klang = SinOsc.ar((note * [1,1.002]).midicps, phase: VarSaw.ar(note.midicps, width: Line.ar(1,0.2,dur))) * 0.3;
+klang = klang * XLine.ar(1,1/10000,dur,doneAction:2);
+Out.ar(0, klang);
+}).play;
+
+SynthDef(\smooth, { |freq = 1760, sustain = 1, amp = 0.5|
+    var sig;
+    sig = SinOsc.ar(freq, 0, amp) * EnvGen.kr(Env.linen(0.05, sustain, 0.1), doneAction: 2);
+    Out.ar(0, sig ! 2)
+}).play;
+
+// Electric piano
+SynthDef(\rhodey_sc, {
+    |
+    // standard meanings
+    out = 0, freq = 440, gate = 1, pan = 0, amp = 0.1,
+    // all of these range from 0 to 1
+    vel = 0.8, modIndex = 0.2, mix = 0.2, lfoSpeed = 0.4, lfoDepth = 0.1
+    |
+    var env1, env2, env3, env4;
+    var osc1, osc2, osc3, osc4, snd;
+
+    lfoSpeed = lfoSpeed * 12;
+
+    freq = freq * 2;
+
+    env1 = EnvGen.ar(Env.adsr(0.001, 1.25, 0.0, 0.04, curve: \lin));
+    env2 = EnvGen.ar(Env.adsr(0.001, 1.00, 0.0, 0.04, curve: \lin));
+    env3 = EnvGen.ar(Env.adsr(0.001, 1.50, 0.0, 0.04, curve: \lin));
+    env4 = EnvGen.ar(Env.adsr(0.001, 1.50, 0.0, 0.04, curve: \lin));
+
+    osc4 = SinOsc.ar(freq * 0.5) * 2pi * 2 * 0.535887 * modIndex * env4 * vel;
+    osc3 = SinOsc.ar(freq, osc4) * env3 * vel;
+    osc2 = SinOsc.ar(freq * 15) * 2pi * 0.108819 * env2 * vel;
+    osc1 = SinOsc.ar(freq, osc2) * env1 * vel;
+    snd = Mix((osc3 * (1 - mix)) + (osc1 * mix));
+    snd = snd * (SinOsc.ar(lfoSpeed) * lfoDepth + 1);
+
+    // using the doneAction: 2 on the other envs can create clicks (bc of the linear curve maybe?)
+    snd = snd * EnvGen.ar(Env.asr(0, 1, 0.1), gate, doneAction: 2);
+    snd = Pan2.ar(snd, pan, amp);
+
+    Out.ar(out, snd);
+}).play;
+
+// Kalimba
+SynthDef(\kalimba, {
+    |out = 0, freq = 440, amp = 0.1, mix = 0.1|
+    var snd;
+    // Basic tone is a SinOsc
+    snd = SinOsc.ar(freq) * EnvGen.ar(Env.perc(0.005, Rand(2.5, 3.5), 1, -8), doneAction: 2);
+    // The "clicking" sounds are modeled with a bank of resonators excited by enveloped pink noise
+    snd = (snd * (1 - mix)) + (DynKlank.ar(`[
+        // the resonant frequencies are randomized a little to add variation
+        // there are two high resonant freqs and one quiet "bass" freq to give it some depth
+        [240*ExpRand(0.9, 1.1), 2020*ExpRand(0.9, 1.1), 3151*ExpRand(0.9, 1.1)],
+        [-7, 0, 3].dbamp,
+        [0.8, 0.05, 0.07]
+    ], PinkNoise.ar * EnvGen.ar(Env.perc(0.001, 0.01))) * mix);
+    Out.ar(out, Pan2.ar(snd, 0, amp));
+}).play;
+
+SynthDef(\kalimba2, {
+    |out = 0, freq = 440, amp = 1, mix = 0.1|
+    var snd, click;
+    // Basic tone is a SinOsc
+    snd = SinOsc.ar(freq) * EnvGen.ar(Env.perc(0.03, Rand(3.0, 4.0), 1, -7), doneAction: 2);
+    snd = HPF.ar( LPF.ar(snd, 380), 120);
+    // The "clicking" sounds are modeled with a bank of resonators excited by enveloped white noise
+    click = DynKlank.ar(`[
+        // the resonant frequencies are randomized a little to add variation
+        // there are two high resonant freqs and one quiet "bass" freq to give it some depth
+        [240*ExpRand(0.97, 1.02), 2020*ExpRand(0.97, 1.02), 3151*ExpRand(0.97, 1.02)],
+        [-9, 0, -5].dbamp,
+        [0.8, 0.07, 0.08]
+    ], BPF.ar(PinkNoise.ar, 6500, 0.1) * EnvGen.ar(Env.perc(0.001, 0.01))) * 0.1;
+    snd = (snd*mix) + (click*(1-mix));
+    snd = Mix( snd );
+    Out.ar(out, Pan2.ar(snd, 0, amp));
+}).add;
+
+
+// Whistle
+SynthDef(\whistle, {
+    |out = 0, freq = 440, gate = 1, amp = 0.5, release = 0.2, dur=1.5|
+    var snd;
+    // whistle sound comes from narrow band pass on pink noise.
+    // LFNoise2 is used as an LFO to add some waviness to the pitch.
+    // super important for realism is a slight upward pitch slide on the onset (Line.kr)
+    snd = BPF.ar(PinkNoise.ar(EnvGen.kr(Env.perc, doneAction: 2)), freq * (2 ** ({ LFNoise2.kr(6, 0.01) } ! 3 + Line.kr(-0.08, 0, 0.07))), 0.001) * 200;
+    snd = Splay.ar(snd);
+    snd = snd * EnvGen.ar(Env.adsr(0.03, 0.1, 0.9, release), gate, doneAction: 2);
+    snd = Pan2.ar(snd, 0, amp);
+    snd = snd * Line.kr(1, 0, dur);
+    Out.ar(out, snd);
+}).add;
+
+SynthDef("AM", { arg freq = 523.25, modfreq = 1, amp = 0.5, attack = 2, dur = 5, pos = 0;
+    var carrier, modulator, env;
+    modulator = SinOsc.kr(modfreq).range(0, 1);
+    carrier = SinOsc.ar(freq: freq, mul: modulator);
+    env = Env.perc(attackTime: attack, releaseTime: dur - attack, level: amp).kr(2);
+    carrier = carrier * env;
+    Out.ar(0, Pan2.ar(carrier, pos))
+}).play;
+
+SynthDef(\kick4, {
+    |out = 0, pan = 0, amp = 0.3|
+    var body, bodyFreq, bodyAmp;
+    var pop, popFreq, popAmp;
+    var click, clickAmp;
+    var snd;
+
+    // body starts midrange, quickly drops down to low freqs, and trails off
+    bodyFreq = EnvGen.ar(Env([261, 120, 51], [0.035, 0.08], curve: \exp));
+    bodyAmp = EnvGen.ar(Env.linen(0.005, 0.1, 0.3), doneAction: 2);
+    body = SinOsc.ar(bodyFreq) * bodyAmp;
+    // pop sweeps over the midrange
+    popFreq = XLine.kr(750, 261, 0.02);
+    popAmp = EnvGen.ar(Env.linen(0.001, 0.02, 0.001)) * 0.15;
+    pop = SinOsc.ar(popFreq) * popAmp;
+    // click is spectrally rich, covering the high-freq range
+    // you can use Formant, FM, noise, whatever
+    clickAmp = EnvGen.ar(Env.perc(0.001, 0.01)) * 0.15;
+    click = LPF.ar(Formant.ar(910, 4760, 2110), 3140) * clickAmp;
+
+    snd = body + pop + click;
+    snd = snd.tanh;
+
+    Out.ar(out, Pan2.ar(snd, pan, amp));
+}).play;
+
+SynthDef(\snare2, {
+    |out = 0, pan = 0, amp = 0.3|
+    var pop, popAmp, popFreq;
+    var noise, noiseAmp;
+    var snd;
+
+    // pop makes a click coming from very high frequencies
+    // slowing down a little and stopping in mid-to-low
+    popFreq = EnvGen.ar(Env([3261, 410, 160], [0.005, 0.01], curve: \exp));
+    popAmp = EnvGen.ar(Env.perc(0.001, 0.11)) * 0.7;
+    pop = SinOsc.ar(popFreq) * popAmp;
+    // bandpass-filtered white noise
+    noiseAmp = EnvGen.ar(Env.perc(0.001, 0.15), doneAction: 2);
+    noise = BPF.ar(WhiteNoise.ar, 810, 1.6) * noiseAmp;
+
+    snd = (pop + noise) * 1.3;
+
+    Out.ar(out, Pan2.ar(snd, pan, amp));
+}).add;
+
+SynthDef(\hihat, {
+    |out = 0, pan = 0, amp = 0.3|
+    var click, clickAmp;
+    var noise, noiseAmp;
+    var snd;
+
+    // noise -> resonance -> expodec envelope
+    noiseAmp = EnvGen.ar(Env.perc(0.001, 0.3, curve: -8), doneAction: 2);
+    noise = Mix(BPF.ar(ClipNoise.ar, [4010, 4151], [0.15, 0.56], [1.0, 0.6])) * 0.7 * noiseAmp;
+
+    snd = noise;
+
+    Out.ar(out, Pan2.ar(snd, pan, amp));
+}).play;
+
+SynthDef(\clap, {
+    |out = 0, amp = 0.5, pan = 0, dur = 1|
+    var env1, env2, snd, noise1, noise2;
+
+    // noise 1 - 4 short repeats
+    env1 = EnvGen.ar(
+        Env.new(
+            [0, 1, 0, 0.9, 0, 0.7, 0, 0.5, 0],
+            [0.001, 0.009, 0, 0.008, 0, 0.01, 0, 0.03],
+            [0, -3, 0, -3, 0, -3, 0, -4]
+        )
+    );
+
+    noise1 = WhiteNoise.ar(env1);
+    noise1 = HPF.ar(noise1, 600);
+    noise1 = LPF.ar(noise1, XLine.kr(7200, 4000, 0.03));
+    noise1 = BPF.ar(noise1, 1620, 3);
+
+    // noise 2 - 1 longer single
+    env2 = EnvGen.ar(Env.new([0, 1, 0], [0.02, 0.18], [0, -4]), doneAction:2);
+
+    noise2 = WhiteNoise.ar(env2);
+    noise2 = HPF.ar(noise2, 1000);
+    noise2 = LPF.ar(noise2, 7600);
+    noise2 = BPF.ar(noise2, 1230, 0.7, 0.7);
+
+    snd = noise1 + noise2;
+    snd = snd * 2;
+    snd = snd.softclip;
+
+    Out.ar(out, Pan2.ar(snd,pan,amp));
+}).play;
+
+SynthDef(\superAwesome, {|freq=440, amp=0.8|
+    Out.ar(0, SinOsc.ar(freq, mul: amp) * EnvGen.kr(Env.perc, doneAction: 2);)
+}).play;
+
+// Bladerunner Synth
+SynthDef(\cfstring1, { arg i_out, freq = 360, gate = 1, pan, amp=0.1;
+    var out, eg, fc, osc, a, b, w;
+    fc = LinExp.kr(LFNoise1.kr(Rand(0.25, 0.4)), -1, 1, 500, 2000);
+    osc = Mix.fill(8, {LFSaw.ar(freq * [Rand(0.99, 1.01), Rand(0.99, 1.01)], 0, amp) }).distort * 0.2;
+    eg = EnvGen.kr(Env.asr(1, 1, 1), gate, doneAction: 2);
+    out = eg * RLPF.ar(osc, fc, 0.1);
+    #a, b = out;
+    Out.ar(i_out, Mix.ar(PanAz.ar(4, [a, b], [pan, pan+0.3])));
+}).play;
+
+SynthDef('openhat', {
+
+    var hatosc, hatenv, hatnoise, hatoutput;
+
+    hatnoise = {LPF.ar(WhiteNoise.ar(1),6000)};
+
+    hatosc = {HPF.ar(hatnoise,2000)};
+    hatenv = {Line.ar(1, 0, 0.3)};
+
+    hatoutput = (hatosc * hatenv);
+
+    Out.ar(0,
+    Pan2.ar(hatoutput, 0)
+    )
+
+}).play;
+
+SynthDef('closedhat', {
+
+    var hatosc, hatenv, hatnoise, hatoutput;
+
+    hatnoise = {LPF.ar(WhiteNoise.ar(1),6000)};
+
+    hatosc = {HPF.ar(hatnoise,2000)};
+    hatenv = {Line.ar(1, 0, 0.1)};
+
+    hatoutput = (hatosc * hatenv);
+
+    Out.ar(0,
+    Pan2.ar(hatoutput, 0)
+    )
+
+}).play;
+
+SynthDef(\marioBeat, { |out, amp=0.3, sustain=0.01|
+    var snd;
+    snd = WhiteNoise.ar()!2;
+    snd = HPF.ar(snd, 2000);
+    snd = snd * EnvGen.ar(Env.linen(0.005, sustain, 0.01), doneAction:2);
+    OffsetOut.ar(out, snd*amp);
+}).play;
+
+
+SynthDef("kickTrig1", { arg levK=1, t_trig=0, dur=0.125;
+    var kEnv, out;
+    var kickEnv;
+    kickEnv = Env.linen(0.001, 1.9, 0.099, 1);
+    kEnv=EnvGen.ar(kickEnv,1, doneAction:2, timeScale: dur, levelScale: levK);
+    out =Pan2.ar(Decay2.kr(t_trig, 0.005, 0.45,
+    FSinOsc.ar(26.midicps, 0.4)+FSinOsc.ar(38.midicps, 0.2)),0);
+
+        Out.ar(0, out*kEnv);
+    }).play;
+
+
+// Need for shaker
+SynthDef(\grainsShake,{
+        |bufnum=0, trigger=1, startPos=0.0, rate= 1, attack=0.01, sustain=0.5,
+release=0.25|
+    var wave;
+    wave = Linen.kr(Impulse.kr(0), attack, sustain, release, doneAction: 2) * // linear envelope generator
+    PlayBuf.ar(1, bufnum, BufRateScale.kr(bufnum) * rate, trigger, startPos,
+        loop:0, doneAction:2);
+    Out.ar(0, Pan2.ar(wave*4, 0));
+}).add;
+
+SynthDef(\grainsRev,{
+        |bufnum=0, trigger=1, startPos=0.0, rate= 1, attack=0.01, sustain=0.5,
+release=0.25|
+    var wave;
+    wave = Linen.kr(Impulse.kr(0), attack, sustain, release, doneAction: 2) * // linear envelope generator
+    PlayBuf.ar(2, bufnum, BufRateScale.kr(bufnum) * rate, trigger, startPos,
+        loop:0, doneAction:2);
+    Out.ar(0, Pan2.ar(wave, 0));
+}).add;
+
+
+// Shaker
+q = Buffer.read(s, "/Users/anthonyamadeo/Documents/Schoolwork/2017-18/Fall/CPSC\ 431/Final\ Project/samples/shakers.wav".standardizePath);
+w = Buffer.read(s, "/Users/anthonyamadeo/Documents/Schoolwork/2017-18/Fall/CPSC\ 431/Final\ Project/samples/revHat.wav".standardizePath);
+x = Synth(\grainsShake, [\bufnum, q]);
+y = Synth(\grainsRev, [\bufnum, w]);
+
+
+)

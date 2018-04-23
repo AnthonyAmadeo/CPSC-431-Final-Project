@@ -1,0 +1,205 @@
+|------------------------------------------------------------------------------
+ Turing Machine Properties
+ CPSC 431
+ Anthony Amadeo
+|------------------------------------------------------------------------------
+
+
+###############################################################################
+tm_convert
+	Converts binary integer n into a sequence of n x's.
+-------------------------------------------------------------------------------
+Output Properties
+	1. 	Leaves 1's and 0's at the tail
+	2. 	Chain of letters precede the numerical tail
+	3. 	x's converted to s's while mirror t's accumulate left of chain
+	4. 	Stillness as machine copies each s into a t on the left
+	5. 	Reconversion of t's and s's into x's before performance on next digit
+
+-------------------------------------------------------------------------------
+Musical Applications
+	1. 	t's could represent bass or drumlike pattern. Length of t's could 
+		correspond to volume of timpani as it moves through a pre-defined
+		sequence (e.g. [C,G,C,G...]). Alternatively, length of t's could also
+		correspond to pitch of bass instrument, informing location within a 
+		pitch class set.
+	2. 	s's could correspond to high whistly instrument, following similar 
+		rules as t's. What could be cool is having length(t) be volume of 
+		timpani, and length(s) be pitch of whistly instrument. In this case,
+		volume may go through some predefined sequence (ex. 
+		[.8, .7, .8, .9, ...]).
+	3. 	Length of x could inform pitch of a mid-range synth, or hollow-sounding
+		instrument - marimba maybe?.
+	4. 	1's, 0's, +'s, and -'s could be high-pitched decorations, e.g. bells or
+		glockenspiel.
+	5.	To make it more interesting during moments of stillness, decrease 
+		volume by small increment if the tape output is exactly the same as
+		the previous one. Return to the original level if it changes.
+*******************************************************************************
+
+
+
+###############################################################################
+tm_reverse
+	Reverses a string of 1's and 0's.
+-------------------------------------------------------------------------------
+Output Properties
+	1.	Takes a string of 1's and 0's and slowly chips away at it, replacing
+		the digits with stars, prepending each digit to the beginning.
+	2.	Loss of digits on for right entity is made up twofold on the left side
+		by production of digit copies and stars. End result is twice the length
+		of original, before finally stars are removed.
+	3.	Stillness increases throughout the procedure as the tape length 
+		increases.
+
+-------------------------------------------------------------------------------
+Musical Applications
+	1. 	Could use the output as spectral evolution for a single synth. For 
+		example, use leftmost place holder to represent fundamental frequency,
+		and use 0's and 1's to represent absence/presence of harmonic 
+		overtone. Alternatively, start in the middle with the stars, and 
+		alternate left and right of stars to get presence/absence of overtones.
+	2. 	For pitch, it could randomly traverse pitches within a scale.
+	3.	Asterisk length could correspond to the duration of note events. If we
+		were not to group events, duration length could follow some rule such 
+		as dur = 1 / length(aster), so that the piece generates few long notes
+		at first and moves towards many faster notes.
+	3.	Another way to handle pitch is to start at a high frequency and
+		gradually slide down as long as the tape is not different from the 
+		previous tape. If it is different, you restart to the same high 
+		frequency. You could also do the opposite, starting at a low frequency
+		and moving upwards.
+*******************************************************************************
+
+
+
+###############################################################################
+tm_sort
+	Takes a string of 1's and 0's and sorts them so that the 0's are on the 
+	left and the 1's are on the right.
+-------------------------------------------------------------------------------
+Output Properties
+	1. 	Sifts a messy input into its two component parts, s's and t's to
+		represent 0's and 1's, respectively.
+	2. 	Leaves behind a trail of stars where the disorder was before.
+	3.	Long and slowly increasing periods of stillness.
+
+-------------------------------------------------------------------------------
+Musical Applications
+	1.	End could be some sort of glissando. Stars can represent chord
+		pitches to be arpeggiated. You can have a harp going playing over all 
+		those pitches. When the stars are removed, arpeggiate downwards. When 
+		the blank symbols enter, you can have an instrument play the upper end
+		of the blanks, and then arpeggiate downward as an echo of the first
+		glissando.
+	2. 	To represent sorting, you can have a process that takes jumbled pitches
+		that may not sound well together, and slowly sift them into groups that
+		do sound well together. One example could have s's be Cmaj and t's be
+		Emin. Chaos resolves into order.
+			The jumbled pitches could be two chords that are 1 or 6 semitones
+			apart.
+	3.	Stillness is broken up by arpeggiation. Length of continuous segment
+		of 0's and 1's can inform duration, where 
+		duration = 1 / rand{60±length(segment)}. Slowly it resolves to a steady
+		tempo.
+	4. 	Pitches are defined; is there a way to inform duration or amplitude?
+*******************************************************************************
+
+
+
+###############################################################################
+tm_bitOr
+	Takes two binary numbers formatted "x?y" and computes their bitwise OR.
+	This is the long version of my algorithm, which is rather inefficient.
+-------------------------------------------------------------------------------
+Output Properties
+	1. 	Gradually replaces digits of the second number with blanks starting
+		from the left and moving rightwards. Simultaneously replaces the
+		corresponding digit of the first number with an s or t, representing
+		the output of the bitwise operation 0 or 1, respectively.
+	2. 	Replaces disorder with redistributed order, tending towards 1's and 
+		t's.
+	3. 	Builds complexity in the first number, while stripping down the second.
+		Then reduces complexity in the first as the second disappears.
+
+-------------------------------------------------------------------------------
+Musical Applications
+	1. 	One way is to use the left value to inform durations of the second.
+		The second number could represent instances of various percussion
+		instruments, e.g. 0 = bass drum, 1 = snare, _ = silence. The left value
+		can incorporate syncopation, e.g. 1 = 4 eighth notes, 0 = 2 eighth 
+		notes, t =  hold for additional eighth note, s = stop early by an 
+		eighth or hold for additional 3 eighth notes.
+	2.	Since the beat becomes progressively less dense on the right, you can
+		pair this with another logic gate Turing machine, which can provide
+		additional or constant percussion, like hi-hats on "_" symbols. 
+*******************************************************************************
+
+
+
+###############################################################################
+tm_bitAnd
+	Takes two binary numbers formatted "x?y" and computes their bitwise AND.
+	This one runs slightly faster than the previous algorithm, by adjusting the
+	left value immediately instead of after reading the right value.
+-------------------------------------------------------------------------------
+Output Properties
+	1. 	Same as previous, but it redistributes order toward 0's and s's.
+
+-------------------------------------------------------------------------------
+Musical Applications
+	1. 	Continuing with previous example, use the same duration scheme as 
+		described above using the left value, but have _'s in the right value
+		correspond to instances of hi-hats. Maybe let any 0's and 1's be 
+		bumpy synths, with 0 as tonic and 1 as dominant.
+	2. 	Alternative scheme:
+*******************************************************************************
+
+
+
+###############################################################################
+tm_bitXor
+	Takes two binary numbers formatted "x?y" and computes their bitwise XOR.
+	Uses the same algorithm as in tm_bitAnd.
+-------------------------------------------------------------------------------
+Output Properties
+	1. 	Similar to previous but does not lower entropy in the output. There is
+		no tendency to either 0 or 1. It mixes digits with equal probability.
+-------------------------------------------------------------------------------
+Musical Applications
+	1. 	Could be used as a substitute to either tm_bitAnd or tm_bitOr in the
+		applications explained above. Benefits of tm_bitXor are that it would
+		not get too stale by overdistributing one way or another.
+*******************************************************************************
+
+
+
+###############################################################################
+tm_unExp
+	Takes two unary representations (x+1, y+1), and computes the outputs
+	the unary representation of (1 + pow(x,y))
+-------------------------------------------------------------------------------
+Output Properties
+	1. 	Flanger
+-------------------------------------------------------------------------------
+Musical Applications
+	1. 	Flanger
+*******************************************************************************
+
+
+
+###############################################################################
+tm_unMult
+	Takes two unary representations of integers (x,y) and computes the unary
+	representation of their product x*y.
+-------------------------------------------------------------------------------
+Output Properties
+	1. 	Converts right value from 1's to y's then back to 1's each time we pass
+		over a digit in the left value.
+	2. 	Appends more and more 1's on the right side of the "=".
+-------------------------------------------------------------------------------
+Musical Applications
+	1. 	Walk through a Turing machine. Have different types of synths 
+		corresponding to the type of character the head is currently on. Let
+		differences between each cell on the tape correspond to a fixed pitch
+		interval, or an interval within a pitch class set.

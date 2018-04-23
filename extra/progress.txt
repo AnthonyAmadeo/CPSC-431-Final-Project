@@ -1,0 +1,7 @@
+Progress Report
+
+1. So far so good. I'm almost done with my Turing machine functions. I'm working out some bugs right now, but should have it working shortly. Then I plan to generate various outputs and sonify them. If I have time, I'll try to convert my code into a TuringMachine class.
+
+2. The project hasn't changed.
+
+3. I need to start thinking of ways to sonify the Turing machine outputs. I know you said during the Cellular Automata lecture that you could help think of ways to turn outputs into musical events. I'm going to think of some ways on my own, but I might ask you for further suggestions.

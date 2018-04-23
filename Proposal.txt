@@ -1,0 +1,38 @@
+/////////////////////////////////////////////////
+Final Project Proposal: Musical Turing Machine
+
+Anthony Amadeo
+CPSC 431
+/////////////////////////////////////////////////
+
+
+A.	Individual project
+
+B.	Create a musical Turing machine
+		Goals:
+			Implement a Turing machine in SuperCollider, either through a series of functions or by creating a Turing Machine class
+
+			Feed a variety of computations into the Turing machine and sonify the process of a Turing machine computing the output.
+
+			Research music-related computations and utilize the Turing machine to make transormations for musical data. Then sonify the result.
+
+		Deliverables:
+			Working code in the form of either a SuperCollider class or program
+			Audio files of the various outputs
+
+C.	Procedure
+		Research how users have implemented Markov chains and Cellular Automata with the SuperCollider classes MarkovSet.sc, CALib, and cellular-automata-102917.scd.
+
+		Research methods of realizing Turing machines. Construct a custom Turing machine class/program for SuperCollider.
+
+		Aggregate a variety of instruction sets that can be used to inform a wide range of Turing machine computations.
+
+		Generate outputs based on these instruction set, and design process for converting output into musical data. 
+
+		If time allows, research music-specific computations and use this Turing machine to apply these computations to data representing musical inputs.
+
+D.	Technical Requirements
+		I don't think I will need access to any equipment besides the SuperCollider and the Internet.
+
+
+

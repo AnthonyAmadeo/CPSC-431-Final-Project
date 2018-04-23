@@ -1,0 +1,5 @@
+***********************************************************
+Sonification Scheme
+***********************************************************
+
+Want to include tape orchestration, spectral piece, percussive piece / combining machines, super fast Turing machine where you sonify its location along the tape

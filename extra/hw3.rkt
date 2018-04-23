@@ -1,0 +1,749 @@
+#lang racket
+
+(provide hours
+         ins ins-c-state ins-c-symbol ins-n-state ins-n-symbol ins-dir
+         tm-reverse
+         i-match? i-lookup
+         conf conf-state conf-ltape conf-symbol conf-rtape
+         halted? change-state write-symbol
+	 normalize
+         shift-head-left shift-head-right
+         next-config
+         tm-convert
+	 tm-sort)
+
+; Please do not modify the lines above this comment.
+; ********************************************************
+; CS 201 HW #3  DUE Sunday, 10/8/2017 at 11:59 pm
+;                via the submit system on the Zoo
+; ****************************************************************
+; Name: Anthony Amadeo
+; Email address: anthony.amadeo@yale.edu
+; ****************************************************************
+
+; Unless the problem specifies otherwise:
+; (a) You may solve the problem using any method and any Racket constructs 
+; (*except* mutators, that is, set! and its relatives.)
+; (b) You may write auxiliary procedure(s) in addition to the one(s) specified in the problem.  
+; Please include a comment for each one specifying what it does and giving one or more examples of it.
+; (c) Please make your code as clear and readable as possible.
+
+; The topics of this assignment are:
+; a simulator for Turing machines and writing Turing machine programs.
+
+; ****************************************************************
+; ** problem 0 ** (1 easy point)
+; Modify the following definition to reflect the number of hours you spent on this assignment.
+
+(define hours 8)
+
+; ****************************************************************
+; Turing machines were described in the lectures; see also the lecture notes on the course web page.
+; Here is a top-level procedure to simulate a Turing machine starting from a given configuration until 
+; either it halts or it has executed n steps.
+; The procedure returns the list of the successive configurations of the computation,
+; starting with the initial one.
+; The length of the list of configurations is one more than 
+; the number of steps taken by the machine.
+
+(define (simulate mach config n) 
+  (cond
+    ((<= n 0) (list config))
+    ((halted? mach config) (list config))
+    (else
+     (cons config
+           (simulate 
+            mach (next-config mach config) (- n 1))))))
+
+; mach is a representation of a Turing machine
+; config is a representation of a configuration of the machine
+; n is the maximum number of steps to simulate
+
+; The procedures halted? and next-config will be
+; written by you in the problems below; you will then
+; have a complete Turing machine simulator.
+
+; ****************************************************************
+; Turing machine representation.
+
+; A Turing machine is represented as a list of instructions, 
+; where each instruction is a 5-tuple, represented as a struct
+; defined as follows:
+
+(struct ins (c-state c-symbol n-state n-symbol dir) #:transparent) 
+
+; The fields represent the following components of an instruction:
+; current state, current symbol, new state, new symbol, and move direction
+
+; The current state and new state are Racket symbols,
+; the current symbol and new symbol are Racket symbols or non-negative integers
+; and the move direction must be either the symbol 'L or the symbol 'R,
+; representing a move to the left or right, respectively.
+
+; Example
+; > (define i1 (ins 'q1 0 'q3 1 'L))
+; creates an instruction with with current state 'q1, current symbol 0,
+; new state 'q3, new symbol 1, and move direction 'L,
+; and names it i1.
+
+; Because we've made ins "transparent", its field values
+; will be printed out.
+; > i1
+; (ins 'q1 0 'q3 1 'L)
+
+; We can access the components of i1 via the structure selectors:
+; (ins-c-state i1) => 'q1
+; (ins-c-symbol i1) => 0
+; (ins-n-state i1) => 'q3
+; (ins-n-symbol i1) => 1
+; (ins-dir i1) => 'L
+
+; Example (from lecture):
+; a Turing machine that when started in state 'q1 on the leftmost of a string of 0's and 1's 
+; changes all the 0's to 1's and all the 1's to 0's 
+; and then returns the head to the leftmost symbol and halts.
+
+(define tm1 
+  (list
+   (ins 'q1 0 'q1 1 'R)
+   (ins 'q1 1 'q1 0 'R)
+   (ins 'q1 'b 'q2 'b 'L)
+   (ins 'q2 0 'q2 0 'L)
+   (ins 'q2 1 'q2 1 'L)
+   (ins 'q2 'b 'q3 'b 'R)))
+
+; ****************************************************************
+; ** problem 1 (15 points)
+; Define (in the format just given) a Turing machine named
+
+; tm-reverse
+
+; that takes an input string of 0's and 1's 
+; and produces an output string equal to the reverse of the input string.
+; When the machine halts, the head should be scanning the leftmost symbol 
+; of the output.
+
+; That is, when started in state q1 with the head on the leftmost of a
+; string of 0's and 1's, it halts with the head on the leftmost of a
+; string of 0's and 1's, and the output string is obtained from
+; the input string by reversing it.
+
+; Your machine *may* use additional tape symbols but the output should contain no
+; symbols other than 0, 1 and blank.
+; When the machine halts, symbols other than the output should be blank.
+
+; Examples of the behavior of tm-reverse
+; 1            =>  1
+; 110          =>  011
+; 0001         =>  1000
+; 101011       =>  110101
+
+; (It may help to review ideas from the machine to make a copy of its input,
+; described in lectures and in the online lecture notes.)
+
+; The initial state of your machine should be q1 -- other states may be named with
+; Racket symbols of your choice.
+
+; IMPORTANT: please describe how your Turing machine works.
+; You'll be able to run it once you get the procedures for the simulator working.
+
+; ****************************************************************
+
+; Naive attempt
+(define tm-reverse
+  (list
+   (ins 'q1  0 'q2 '* 'L)
+   (ins 'q1  1 'q3 '* 'L)
+   (ins 'q2 '* 'q2 '* 'L)
+   (ins 'q2  0 'q2  0 'L)
+   (ins 'q2  1 'q2  1 'L)
+   (ins 'q3 '* 'q3 '* 'L)
+   (ins 'q3  0 'q3  0 'L)
+   (ins 'q3  1 'q3  1 'L)
+   (ins 'q2 'b 'q4  0 'R)
+   (ins 'q3 'b 'q4  1 'R)
+   (ins 'q4  0 'q4  0 'R)
+   (ins 'q4  1 'q4  1 'R)
+   (ins 'q4 '* 'q5 '* 'R)
+   (ins 'q5 '* 'q5 '* 'R)
+   (ins 'q5  0 'q2 '* 'L)
+   (ins 'q5  1 'q3 '* 'L)
+   (ins 'q5 'b 'q6 'b 'L)
+   (ins 'q6 '* 'q6 'b 'L)
+   (ins 'q6  0 'q6  0 'L)
+   (ins 'q6  1 'q6  1 'L)
+   (ins 'q6 'b 'q7 'b 'R)))
+
+; q1 = Initial
+; q2 = Found a 0. Replace symbol with '* = skip-me. Skip over other '*.
+;      Don't alter any 0's or 1's encountered. Deposit 0 when you encounter
+;      blank = 'b, and switch to q4.
+; q3 = Found a 1. Deposit 1 when you encounter blank = 'b. Otherwise,
+;      same properties as q2.
+; q4 = Search for next symbol in string. Move right. Don't alter any 0's or 1's.
+;      If you find a '*, switch to q5.
+; q5 = Wait for number or blank. Move right. If you see a 0, go to q2.
+;      If you see a 1, go to q3. If you see a blank, clean up all the '*.
+; q6 = Clean up the '*. Move left. Replace '* with 'b. Don't alter 0's or 1's.
+;      Once you see a 'b at the end, go right one, and enter q7.
+; q7 = Finished
+
+
+; ****************************************************************
+; ** problem 2 (10 points)
+; Write the following two procedures.
+; Remember to use the instruction selectors:
+; ins-c-state, ins-c-symbol, ins-n-state, ins-n-symbol, ins-dir
+
+; (i-match? state symbol inst)
+; returns #t if state and symbol are equal to 
+; the state and symbol of instruction inst
+; otherwise returns #f
+
+; (i-lookup state symbol mach)
+; returns #f if no instruction of Turing machine mach 
+; has state and symbol equal to state and symbol
+; otherwise returns the instruction in mach that matches.
+; You may assume that at most one instruction will match.
+
+; Examples
+; (i-match? 'q1 'b (ins 'q1 'b 'q3 'b 'L)) => #t
+; (i-match? 'q1  0  (ins 'q1 1 'q4 1 'L)) => #f
+; (i-match? 'q2 1 (ins 'q2 1 'q2 1 'L)) => #t
+; (equal? (i-lookup 'q1 1 tm1) (ins 'q1 1 'q1 0 'R)) => #t
+; (equal? (i-lookup 'q2 'b tm1) (ins 'q2 'b 'q3 'b 'R)) => #t
+; (i-lookup 'q3 1 tm1) => #f
+; ****************************************************************
+
+(define (i-match? state symbol inst)
+  (and (equal? state (ins-c-state inst))
+       (equal? symbol (ins-c-symbol inst))))
+
+(define (i-lookup state symbol mach)
+  (let ((x (filter (lambda(inst) (i-match? state symbol inst)) mach)))
+    (if (= 1 (length x)) (car x) #f)))
+
+
+; ****************************************************************
+; Representation of a Turing machine configuration.
+; We represent a Turing machine configuration using the following structure:
+
+(struct conf (state ltape symbol rtape) #:transparent)
+
+; where state is the current state of the machine,
+; ltape is a list of symbols to the left of the currently scanned symbol,
+; symbol is the currently scanned symbol,
+; rtape is a list of symbols to the right of the currently scanned symbol.
+
+; We reserve the symbol 'b for the blank.
+
+; For example, we define the following two configurations:
+
+(define config1 (conf 'q3 '(0 0) 1 '(1)))
+(define config2 (conf 'q6 '(1 b) 0 '(b b)))
+
+; Note that the selectors are
+; conf-state, conf-ltape, conf-symbol, conf-rtape
+
+; config1 represents the Turing machine configuration
+
+;   --------------------------
+;   .. | 0 | 0 | 1 | 1 |  | ..
+;   --------------------------
+;                ^
+;                q3
+
+; in which the non-blank symbols on the tape are 0011,
+; and the machine is in state q3 with the read/write head
+; scanning the leftmost 1.
+
+; config2 represents the Turing machine configuration
+
+;   ------------------------------
+;   .. |   | 1 |  | 0 |   |   | ..
+;   ------------------------------
+;                   ^
+;                   q6
+
+; in which the symbols 1, blank, 0, are on the tape, surrounded
+; by blanks, and the machine is in state q6 with the read/write
+; head scanning the 0.
+
+; A configuration is *normalized* if neither the first symbol of
+; ltape nor the last symbol of rtape is the symbol 'b.
+; Of the two configurations above, config1 is normalized, 
+; but config2 is not (the last element of its rtape list is 'b.)
+
+; Note that tape squares not explicitly represented are
+; assumed to contain blanks.  A normalized configuration
+; to represent the machine in state q1 with all tape squares
+; blank is thus (conf 'q1 '() 'b '())).
+
+; ****************************************************************
+; ** problem 3 (9 points)
+; Write the following three procedures.
+
+; (halted? mach config)
+; returns #t if the Turing machine mach is halted in machine configuration config 
+; (ie, no instruction of the machine matches the current state and symbol 
+; in configuration config) and returns #f otherwise.
+
+; (change-state new-state config)
+; takes a configuration config and returns a configuration
+; in which the state of the machine is changed to new-state.
+
+; (write-symbol new-symbol config) takes a configuration config and
+; returns a configuration in which the symbol scanned by 
+; the read/write head has been replaced by new-symbol.
+
+; Examples
+; (halted? tm1 (conf 'q1 '(1 1 0) 'b '())) => #f
+; (halted? (list (ins 'q1 'b 'q2 'b 'R)) (conf 'q2 '() 'b '())) => #t
+; (change-state 'q2 (conf 'q1 '(0) 1 '())) => (conf 'q2 '(0) 1 '())
+; (change-state 'q13 (conf 'q4 '(0 1 1) 'b '())) => (conf 'q13 '(0 1 1) 'b '())
+; (write-symbol 1 (conf 'q5 '(0) 0 '(1 1))) => (conf 'q5 '(0) 1 '(1 1))
+; (write-symbol 'c (conf 'q2 '(0 0 1) 1 '(1 1))) => (conf 'q2 '(0 0 1) 'c '(1 1))
+; (write-symbol 'b (conf 'q3 '(1) 0 '())) => (conf 'q3 '(1) 'b '())
+; ****************************************************************
+
+(define (halted? mach config)
+  (not (ormap
+        (lambda (inst)
+          (i-match? (conf-state config) (conf-symbol config) inst)) mach)))
+
+(define (change-state state config)
+  (conf state (conf-ltape config) (conf-symbol config) (conf-rtape config)))
+
+(define (write-symbol new-symbol config)
+  (conf (conf-state config) (conf-ltape config) new-symbol (conf-rtape config)))
+
+; ****************************************************************
+; ** problem 4 ** (10 points)
+; Write one procedure
+
+; (normalize config)
+; takes a Turing machine configuration config and returns an equivalent 
+; *normalized* configuration. That is, the same Turing machine configuration is
+; represented by the input configuration and the output configuration, 
+; and the output configuration does not have a 'b as the first element 
+; of its ltape list or the last element of its rtape list.
+
+; Examples
+; (normalize config1) => (conf 'q3 '(0 0) 1 '(1))
+; (normalize config2) => (conf 'q6 '(1 b) 0 '())
+; (normalize (conf 'q3 '(b 0) 'b '(1 1 0 b b))) => (conf 'q3 '(0) 'b '(1 1 0))
+; (normalize (conf 'q6 '(b 0 b 0) 1 '(0 b 0 b))) => (conf 'q6 '(0 b 0) 1 '(0 b 0))
+; (normalize (conf 'q4 '(b b) 'b '(b b b))) => (conf 'q4 '() 'b '())
+; ****************************************************************
+
+
+(define (normalize config)
+  (let* ([l (conf-ltape config)]
+         [r (conf-rtape config)]
+         [new-l (cond-cdr (lambda(z) (equal? z 'b)) l)]
+         [new-r (reverse (cond-cdr (lambda(z) (equal? z 'b)) (reverse r)))])
+    (conf (conf-state config) new-l (conf-symbol config) new-r)))
+
+; Conditional cdr: keep cdr-ing a list as long as a condition holds about (car lst)
+(define (cond-cdr condit lst)
+  (if (= 0 (length lst)) '()
+      (if (condit (car lst))
+          (cond-cdr condit (cdr lst)) lst)))
+
+; ****************************************************************
+; ** problem 5 ** (10 points)
+; Write two procedures
+
+; (shift-head-left config)
+; takes a normalized configuration config and returns a normalized configuration 
+; in which the position of the read/write head has been moved one tape square 
+; to the left.
+
+; (shift-head-right config)
+; takes a normalized configuration config and returns a normalized configuration 
+; in which the position of the read/write head has been moved one tape square 
+; to the right.
+
+; Examples
+; (shift-head-left  (conf 'q5 '() 'b '())) => (conf 'q5 '() 'b '())
+; (shift-head-left  (conf 'q6 '(0 0) 1 '(1 1))) => (conf 'q6 '(0) 0 '(1 1 1))
+; (shift-head-left  (conf 'q7 '() 0 '(1 1 0))) => (conf 'q7 '() 'b '(0 1 1 0))
+; (shift-head-right (conf 'q2 '() 'b '())) => (conf 'q2 '() 'b '())
+; (shift-head-right (conf 'q9 '() 0 '(1 1 1))) => (conf 'q9 '(0) 1 '(1 1))
+; (shift-head-right (conf 'q8 '(1 0 1 1) 'b '())) => (conf 'q8 '(1 0 1 1 b) 'b '())
+; ****************************************************************
+
+; last element of a list is built in to Racket (last lst)
+
+; all but last element of a list -- uses Racket's drop-right
+
+
+(define (shift-head-left config)
+  (normalize (conf
+              (conf-state config)
+              (pop-tape (conf-ltape config))
+              (change-sym (conf-ltape config))
+              (add-tape (conf-symbol config) (conf-rtape config)))))
+
+(define (shift-head-right config)
+  (normalize (conf
+              (conf-state config)
+              (reverse (add-tape (conf-symbol config) (reverse (conf-ltape config))))
+              (change-sym (reverse (conf-rtape config)))
+              (reverse (pop-tape (reverse (conf-rtape config)))))))
+
+;; Auxiliary functions
+(define (pop-tape tape)
+  (if (null? tape) '()
+      (drop-right tape 1)))
+
+(define (change-sym pre-tape)
+  (if (null? pre-tape) 'b
+      (last pre-tape)))
+
+(define (add-tape symbol tape)
+  (reverse (append (reverse tape) (list symbol))))
+
+
+
+; ****************************************************************
+; ** problem 6 ** (15 points)
+; Write a procedure 
+
+; (next-config mach config)
+; takes a Turing machine mach and a normalized configuration config
+; and returns the normalized next configuration 
+; for the Turing machine mach in the configuration config.
+; If there is no applicable instruction, the configuration
+; returned should be just the input configuration.
+
+; Hint: get your procedures
+; halted?, i-lookup, write-symbol, shift-head-left, shift-head-right
+; working and combine them appropriately.
+
+; Examples
+; (next-config tm1 (conf 'q1 '() 0 '(0 1))) => (conf 'q1 '(1) 0 '(1))
+; (next-config tm1 (conf 'q1 '(1) 0 '(1))) => (conf 'q1 '(1 1) 1 '())
+; (next-config tm1 (conf 'q1 '(1 1 0) 'b '())) => (conf 'q2 '(1 1) 0 '())
+; (next-config tm1 (conf 'q2 '() 'b '(1 1 0))) => (conf 'q3 '() 1 '(1 0))
+; (next-config tm1 (conf 'q3 '() 1 '(1 0))) => (conf 'q3 '() 1 '(1 0))
+; ****************************************************************
+(define (next-config mach config)
+  (if (halted? mach config) config
+      (let* ([inst (i-lookup (conf-state config) (conf-symbol config) mach)]
+             [conf_1 (change-state (ins-n-state inst) config)]
+             [conf_f (write-symbol (ins-n-symbol inst) conf_1)])
+        (if (equal? (ins-dir inst) 'L)
+            (shift-head-left conf_f)
+            (shift-head-right conf_f)))))
+
+; ****************************************************************
+; If your procedures are working, then you should
+; be able to run the following example, which
+; shows the successive normalized configurations 
+; of Turing machine tm1 when run from the given configuration.
+
+;> (simulate tm1 (conf 'q1 '() 1 '(1 0 1 0)) 20)
+;(list
+; (conf 'q1 '() 1 '(1 0 1 0))
+; (conf 'q1 '(0) 1 '(0 1 0))
+; (conf 'q1 '(0 0) 0 '(1 0))
+; (conf 'q1 '(0 0 1) 1 '(0))
+; (conf 'q1 '(0 0 1 0) 0 '())
+; (conf 'q1 '(0 0 1 0 1) 'b '())
+; (conf 'q2 '(0 0 1 0) 1 '())
+; (conf 'q2 '(0 0 1) 0 '(1))
+; (conf 'q2 '(0 0) 1 '(0 1))
+; (conf 'q2 '(0) 0 '(1 0 1))
+; (conf 'q2 '() 0 '(0 1 0 1))
+; (conf 'q2 '() 'b '(0 0 1 0 1))
+; (conf 'q3 '() 0 '(0 1 0 1)))
+
+; ****************************************************************
+; ** problem 7 ** (15 points)
+; Define (in the given representation) a Turing machine named
+
+; tm-convert
+
+; that takes as input a positive integer n represented in binary
+; and produces as output a string of n x's.  When the machine
+; halts, the read/write head should be positioned over the
+; leftmost x in the output string.  The start state should be named
+; q1 -- other states may be named by any other Racket symbols.
+
+; You *may* use additional tape symbols.  When the machine halts,
+; there should be just n x's, surrounded by blanks, on the tape.
+
+; IMPORTANT: Give a clear overview description of how your Turing machine works.
+
+; NOTE: you can still do this problem if your simulator is not working, 
+; assuming you understand Turing machines and the representation of them 
+; defined above.
+
+; Examples of the behavior of tm-convert
+; 1            => x
+; 110          => xxxxxx
+; 1111         => xxxxxxxxxxxxxxx
+
+; Here are input configurations if you want to simulate your tm-convert on
+; these inputs.
+
+(define conv1 (conf 'q1 '() 1 '()))
+(define conv6 (conf 'q1 '() 1 '(1 0)))
+(define conv15 (conf 'q1 '() 1 '(1 1 1)))
+
+; ****************************************************************
+
+(define tm-convert
+  (list
+   (ins 'q1   0 'q1  'b 'R)
+   (ins 'q1  'b 'fin 'b 'L)
+   (ins 'q1   1 'q2  'x 'R)
+   (ins 'q2   0 'q3  '- 'L)
+   (ins 'q2   1 'q3  '+ 'L)
+   (ins 'q3  'x 'q4  's 'L)
+   (ins 'q4  'x 'q4  'x 'L)
+   (ins 'q4  't 'q4  't 'L)
+   (ins 'q4  'b 'q5  't 'R)
+   (ins 'q5  't 'q5  't 'R)
+   (ins 'q5  'x 'q5  'x 'R)
+   (ins 'q5  's 'q5  's 'R)
+   (ins 'q5  '- 'q3  '- 'L)
+   (ins 'q5  '+ 'q3  '+ 'L)
+   (ins 'q3  's 'q3  's 'L)
+   (ins 'q3  't 'q6  't 'L)
+   (ins 'q6  's 'q6  's 'L)
+   (ins 'q6  't 'q6  't 'L)
+   (ins 'q6  'b 'q7  'b 'R)
+   (ins 'q7  't 'q7  'x 'R)
+   (ins 'q7  's 'q7  'x 'R)
+   (ins 'q7  '- 'q8  'x 'L)
+   (ins 'q7  '+ 'q2  'x 'R)
+   (ins 'q8  'x 'q8  'x 'L)
+   (ins 'q8  'b 'q9  'b 'R)
+   (ins 'q9  'x 'q2  'b 'R)
+   (ins 'q2  'x 'q2  'x 'R)
+   (ins 'q2  'b 'q10 'b 'L)
+   (ins 'q10 'x 'q10 'x 'L)
+   (ins 'q10 'b 'fin 'b 'R)))
+
+
+; q1  = Initial / Remove zeros / Put down initial 'x
+; q2  = Check for further digits. If blank, you just need to clean up
+; q3  = look for x to the left
+; q4  = ignore x's
+; q5  = search for 's
+; q6  = move to left end to prepare for 's and 't conversion
+; q7  = 's and 't conversion
+; q8  = we found a - and must delete left-most x
+; q9  = delete x on the end
+; q10 = almost done. move to leftmost end
+
+; ****************************************************************
+; ** problem 8 ** (15 points)
+; Define (in the given representation) a Turing machine named
+
+; tm-sort
+
+; that takes as input a non-empty string of 0's and 1's
+; and produces as output a string of 0's and 1's equal to the input
+; string rearranged to have all the 0's before all the 1's.
+; When the machine halts, the read/write head should be positioned over the
+; leftmost 0 or 1 in the output string.  The start state should be named
+; q1 -- other states may be named by any other Racket symbols.
+
+; You *may* use additional tape symbols.  When the machine halts,
+; the only non-blank symbols on the tape should be the output string.
+
+; IMPORTANT: Give a clear overview description of how your Turing machine works.
+
+; NOTE: you can still do this problem if your simulator is not working, 
+; assuming you understand Turing machines and the representation of them 
+; defined above.
+
+; Examples of the behavior of tm-sort
+; 0          => 0  
+; 1          => 1
+; 00         => 00
+; 110        => 011
+; 1011011    => 0011111
+
+; Here are some input configurations if you want to simulate your tm-sort on
+; these inputs.
+
+(define sort0 (conf 'q1 '() 0 '()))
+(define sort1 (conf 'q1 '() 1 '()))
+(define sort00 (conf 'q1 '() 0 '(0)))
+(define sort110 (conf 'q1 '() 1 '(1 0)))
+(define sort-long (conf 'q1 '() 1 '(0 1 1 0 1 1)))
+; ****************************************************************
+
+(define tm-sort
+  (list
+   (ins 'q1  0 'q2 '* 'R)
+   (ins 'q1  1 'q4 '* 'R)
+   (ins 'q2  0 'q2  0 'R)
+   (ins 'q2  1 'q2  1 'R)
+   (ins 'q2 'b 'q5 's 'L)
+   (ins 'q2 's 'q2 's 'R)
+   (ins 'q2 't 'q3 's 'R)
+   (ins 'q3 't 'q3 't 'R)
+   (ins 'q3 'b 'q5 't 'L)
+   (ins 'q4 'b 'q5 't 'L)
+   (ins 'q5 's 'q5 's 'L)
+   (ins 'q5 't 'q5 't 'L)
+   (ins 'q5  0 'q5  0 'L)
+   (ins 'q5  1 'q5  1 'L)
+   (ins 'q5 '* 'q1 '* 'R)
+   (ins 'q4  0 'q4  0 'R)
+   (ins 'q4  1 'q4  1 'R)
+   (ins 'q4 's 'q4 's 'R)
+   (ins 'q4 't 'q4 't 'R)
+   
+   
+   (ins 'q1 's 'q6 's 'L)
+   (ins 'q1 't 'q6 't 'L)
+   (ins 'q6 '* 'q6 'b 'L)
+   (ins 'q6 'b 'q7 'b 'R)
+   (ins 'q7 'b 'q7 'b 'R)
+   (ins 'q7 's 'q8  0 'R)
+   (ins 'q7 't 'q8  1 'R)
+   (ins 'q8 's 'q8  0 'R)
+   (ins 'q8 't 'q8  1 'R)
+   (ins 'q8 'b 'q9 'b 'L)
+   (ins 'q9  0 'q9  0 'L)
+   (ins 'q9  1 'q9  1 'L)
+   (ins 'q9 'b 'fin  'b 'R)))
+   
+
+; q1 = Initial / look for digits moving right
+; q2 = Found a zero. Going to deposit it at the left end
+; q3 = deposited 0 as an 's. Going back to '*
+; q4 = Found a 1. Going to deposit on right end
+; q5 = deposited 1 as a 't. Going back to beginning of '*
+; q6 = Clean
+; right = Try shifting from right.
+
+; ****************************************************************
+; Extra Machines
+; Define a Turing machine named tm-bitor that outputs the bitwise
+; or of two binary numbers separated by a '?.
+
+(define tm-bitor
+  (list
+   (ins 'q1  0 'q2  0 'R)
+   (ins 'q1  1 'q3  1 'R)
+   (ins 'q2  0 'q2  0 'R)
+   (ins 'q2  1 'q2  1 'R)
+   (ins 'q2 '? 'q4 '? 'R)
+   (ins 'q3  0 'q3  0 'R)
+   (ins 'q3  1 'q3  1 'R)
+   (ins 'q3 '? 'q7 '? 'R)
+   (ins 'q4  0 'q5 'b 'L)
+   (ins 'q4  1 'q6 'b 'L)
+   (ins 'q4 'b 'q4 'b 'R)
+   (ins 'q7  0 'q8 'b 'L)
+   (ins 'q7  1 'q9 'b 'L)
+   (ins 'q7 'b 'q7 'b 'R)
+   
+   (ins 'q5 'b 'q5  'b 'L)
+   (ins 'q5 '? 'q5+ '? 'L)
+   (ins 'q6 'b 'q6  'b 'L)
+   (ins 'q6 '? 'q6+ '? 'L)
+   (ins 'q8 'b 'q8  'b 'L)
+   (ins 'q8 '? 'q8+ '? 'L)
+   (ins 'q9 'b 'q9  'b 'L)
+   (ins 'q9 '? 'q9+ '? 'L)
+
+   (ins 'q5+  0 'q5+   0 'L)
+   (ins 'q5+  1 'q5+   1 'L)
+   (ins 'q5+ 'b 'q5++ 'b 'R)
+   (ins 'q5+ 's 'q5++ 's 'R)
+   (ins 'q5+ 't 'q5++ 't 'R)
+   (ins 'q6+  0 'q6+   0 'L)
+   (ins 'q6+  1 'q6+   1 'L)
+   (ins 'q6+ 'b 'q6++ 'b 'R)
+   (ins 'q6+ 's 'q6++ 's 'R)
+   (ins 'q6+ 't 'q6++ 't 'R)
+   (ins 'q8+  0 'q8+   0 'L)
+   (ins 'q8+  1 'q8+   1 'L)
+   (ins 'q8+ 'b 'q8++ 'b 'R)
+   (ins 'q8+ 's 'q8++ 's 'R)
+   (ins 'q8+ 't 'q8++ 't 'R)
+   (ins 'q9+  0 'q9+   0 'L)
+   (ins 'q9+  1 'q9+   1 'L)
+   (ins 'q9+ 'b 'q9++ 'b 'R)
+   (ins 'q9+ 's 'q9++ 's 'R)
+   (ins 'q9+ 't 'q9++ 't 'R)
+
+   (ins 'q5++ 0 'q1 's 'R)
+   (ins 'q5++ 1 'q1 's 'R)
+   (ins 'q6++ 0 'q1 't 'R)
+   (ins 'q6++ 1 'q1 't 'R)
+   (ins 'q8++ 0 'q1 't 'R)
+   (ins 'q8++ 1 'q1 't 'R)
+   (ins 'q9++ 0 'q1 't 'R)
+   (ins 'q9++ 1 'q1 't 'R)
+
+   (ins 'q1  '? 'q10 'b 'L)
+   (ins 'q10 't 'q10  1 'L)
+   (ins 'q10 's 'q10  0 'L)
+   (ins 'q10 'b 'end 'b 'R)))
+
+; ********************************************************
+; ********  testing, testing. 1, 2, 3 ....
+; ********************************************************
+
+(define *testing-flag* #t)
+
+(define (test name got expected)
+  (cond (*testing-flag*
+	 (let* ((expected (if (procedure? expected)
+			      (and (expected got) 'OK-TEST)
+			      expected))
+		(prefix (if (equal? got expected)
+			    'OK
+			    'X)))
+	   (list 'testing name prefix 'got: got 'expected: expected)))))
+	
+(test 'hours hours (lambda (x) (> x 0)))
+
+(test 'i-match? (i-match? 'q1 'b (ins 'q1 'b 'q3 'b 'L)) #t)
+(test 'i-match? (i-match? 'q1  0  (ins 'q1 1 'q4 1 'L)) #f)
+(test 'i-match? (i-match? 'q2 1 (ins 'q2 1 'q2 1 'L)) #t)
+(test 'i-lookup (i-lookup 'q1 1 tm1) (ins 'q1 1 'q1 0 'R))
+(test 'i-lookup (i-lookup 'q2 'b tm1) (ins 'q2 'b 'q3 'b 'R))
+(test 'i-lookup (i-lookup 'q3 1 tm1) #f)
+
+(test 'halted? (halted? tm1 (conf 'q1 '(1 1 0) 'b '())) #f)
+(test 'halted? (halted? (list (ins 'q1 'b 'q2 'b 'R)) (conf 'q2 '() 'b '())) #t)
+(test 'change-state (change-state 'q2 (conf 'q1 '(0) 1 '())) (conf 'q2 '(0) 1 '()))
+(test 'change-state (change-state 'q13 (conf 'q4 '(0 1 1) 'b '())) (conf 'q13 '(0 1 1) 'b '()))
+(test 'write-symbol (write-symbol 1 (conf 'q5 '(0) 0 '(1 1))) (conf 'q5 '(0) 1 '(1 1)))
+(test 'write-symbol (write-symbol 'c (conf 'q2 '(0 0 1) 1 '(1 1))) (conf 'q2 '(0 0 1) 'c '(1 1)))
+(test 'write-symbol (write-symbol 'b (conf 'q3 '(1) 0 '())) (conf 'q3 '(1) 'b '()))
+
+(test 'normalize (normalize config1) (conf 'q3 '(0 0) 1 '(1)))
+(test 'normalize (normalize config2) (conf 'q6 '(1 b) 0 '()))
+(test 'normalize (normalize (conf 'q3 '(b 0) 'b '(1 1 0 b b))) (conf 'q3 '(0) 'b '(1 1 0)))
+(test 'normalize (normalize (conf 'q6 '(b 0 b 0) 1 '(0 b 0 b))) (conf 'q6 '(0 b 0) 1 '(0 b 0)))
+(test 'normalize (normalize (conf 'q4 '(b b) 'b '(b b b))) (conf 'q4 '() 'b '()))
+
+
+(test 'shift-head-left (shift-head-left (conf 'q5 '() 'b '())) (conf 'q5 '() 'b '()))
+(test 'shift-head-left (shift-head-left (conf 'q6 '(0 0) 1 '(1 1))) (conf 'q6 '(0) 0 '(1 1 1)))
+(test 'shift-head-left (shift-head-left (conf 'q7 '() 0 '(1 1 0))) (conf 'q7 '() 'b '(0 1 1 0)))
+(test 'shift-head-right (shift-head-right (conf 'q2 '() 'b '())) (conf 'q2 '() 'b '()))
+(test 'shift-head-right (shift-head-right (conf 'q9 '() 0 '(1 1 1))) (conf 'q9 '(0) 1 '(1 1)))
+(test 'shift-head-right (shift-head-right (conf 'q8 '(1 0 1 1) 'b '())) (conf 'q8 '(1 0 1 1 b) 'b '()))
+
+
+(test 'next-config (next-config tm1 (conf 'q1 '() 0 '(0 1))) (conf 'q1 '(1) 0 '(1)))
+(test 'next-config (next-config tm1 (conf 'q1 '(1) 0 '(1))) (conf 'q1 '(1 1) 1 '()))
+(test 'next-config (next-config tm1 (conf 'q1 '(1 1 0) 'b '())) (conf 'q2 '(1 1) 0 '()))
+(test 'next-config (next-config tm1 (conf 'q2 '() 'b '(1 1 0))) (conf 'q3 '() 1 '(1 0)))
+(test 'next-config (next-config tm1 (conf 'q3 '() 1 '(1 0))) (conf 'q3 '() 1 '(1 0)))
+
+
+; *************** end of hw3.rkt *********************************
+
